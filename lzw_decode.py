@@ -5,59 +5,60 @@
 # Author: Robert Thomas <robert.jst@icloud.com>
 #
 # Script coded using pep8 style guide
-import numpy as np
 
 
+def decompress_LZW(input_file_path):
 
-with open("./LzwInputData/compressedfile1.z", mode="rb") as file:
-    # test = file.read()
-    # print (test)
-    # print np.fromfile("./LzwInputData/compressedfile1.z", dtype=np.uint8)
-#     # print bytearray(file.read())
-    string = ""
-    compressed=[]
-    while True:
-        byte = file.read(1)
-        if not byte:
-            break
-        string += ("{0:0>8b}".format(ord(byte)))
-        # string += str(ord(byte))
-        compressed.append(byte)
-n=12
-compressed= ([int(string[i:i+n],2) for i in range(0, len(string), n)])
-
-
-def decompress(compressed):
-    """Decompress a list of output ks to a string."""
-    
-    # Build the dictionary.
+    compressed = load_LZW(input_file_path)
+    # Build the initial dictionary
     dict_size = 256
-    dictionary = {i: chr(i) for i in range(dict_size)}
-    test = [chr(i) for i in range(dict_size)]
-    print(test)
-    # in Python 3: dictionary = {i: chr(i) for i in range(dict_size)}
- 
-    # use StringIO, otherwise this becomes O(N^2)
-    # due to string concatenation in a loop
-    
-    w = result = chr(compressed.pop(0))
-    result = w
+    dictionary = [chr(i) for i in range(dict_size)]
+
+    result = w = chr(compressed.pop(0))
+
+    # loop through all keys
     for k in compressed:
-        if k in dictionary:
-            entry = dictionary[k]
+        # Check for dictionary reset
+        if (dict_size >= 4096):  # 2^12 entries
+            dict_size = 256
+            dictionary = [chr(i) for i in range(dict_size)]
+        if k > dict_size:
+            raise ValueError('Invalid key, k: %s' % k)
         elif k == dict_size:
             entry = w + w[0]
         else:
-            raise ValueError('Bad compressed k: %s' % k)
-        result += entry
- 
-        # Add w+entry[0] to the dictionary.
-        dictionary[dict_size] = w + entry[0]
-        dict_size += 1
- 
+            entry = dictionary[k]
 
+        result += entry
+        dictionary.append(w + entry[0])
+        dict_size += 1
         w = entry
-    # print dictionary
+
     return result
-with open("results.txt", mode="w") as file:
-    file.write(decompress(compressed))
+
+
+def load_LZW(input_file_path):
+    with open(input_file_path, mode="rb") as file:
+        string = ""
+        compressed = []
+        while True:
+            byte = file.read(1)
+            if not byte:
+                break
+            # pad with leading zeros
+            string += ("{0:0>8b}".format(ord(byte)))
+    # Split into list of 12 bit sections
+    n = 12
+    compressed = ([int(string[i:i+n], 2) for i in range(0, len(string), n)])
+    return compressed
+
+if __name__ == "__main__":
+    import argparse
+    # Create argument parser for input and output file paths
+    parser = argparse.ArgumentParser(description="Decompress LZW")
+    parser.add_argument('-f', '--file', dest='input_file_path')
+    parser.add_argument('-o', '--output', dest='output_file_path',
+                        default='output.txt')
+    args = parser.parse_args()
+    with open(args.output_file_path, "w") as out_file:
+        out_file.write(decompress_LZW(args.input_file_path))
