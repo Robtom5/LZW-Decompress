@@ -8,18 +8,22 @@
 
 
 def decompress_LZW(input_file_path):
+    # Function based and adapted from code available at:
+    #    https://rosettacode.org/wiki/LZW_compression
 
-    # compressed = load_LZW(input_file_path)
     # Build the initial dictionary
     dict_size = 256
     dictionary = [chr(i) for i in range(dict_size)]
     generator = load_LZW(input_file_path)
-    
+
     first = True
 
     # loop through all keys
     for chunk in generator:
+        # Reset the output string
+        result = ""
         if first:
+            # If at the start of the generator, initialise results
             result = w = chr(chunk.pop(0))
             first = False
         for k in chunk:
@@ -38,24 +42,27 @@ def decompress_LZW(input_file_path):
             dictionary.append(w + entry[0])
             dict_size += 1
             w = entry
-    return result
+        yield result
 
 
 def load_LZW(input_file_path):
     with open(input_file_path, mode="rb") as file:
+        # Initialise empty string for outputs
         string = ""
         i = 0
         n = 12
         while True:
             byte = file.read(1)
             if not byte:
-                yield ([int(string[i:i+n], 2) for i in range(0, len(string), n)])
+                yield ([int(string[i:i+n], 2)
+                        for i in range(0, len(string), n)])
                 break
             # pad with leading zeros
             string += ("{0:0>8b}".format(ord(byte)))
             i += 1
             if i >= 12:
-                yield ([int(string[i:i+n], 2) for i in range(0, len(string), n)])
+                yield ([int(string[i:i+n], 2)
+                        for i in range(0, len(string), n)])
                 string = ""
                 i = 0
 
@@ -68,4 +75,5 @@ if __name__ == "__main__":
                         default='output.txt')
     args = parser.parse_args()
     with open(args.output_file_path, "w") as out_file:
-        out_file.write(decompress_LZW(args.input_file_path))
+        for decompressed in decompress_LZW(args.input_file_path):
+            out_file.write(decompressed)
